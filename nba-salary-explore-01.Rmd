@@ -1,0 +1,119 @@
+---
+title: "NBA Salaries exploration"
+author: "John Yuill"
+date: "May 23, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      message=FALSE,
+                      warning=FALSE)
+
+## libraries
+library(tidyverse)
+library(scales)
+library(plotly)
+
+## viz settings
+th1 <- "theme_bw()"
+
+```
+
+Exploring descriptive stats on NBA salaries
+
+```{r IMPORT DATA}
+nba_sal <- read_csv("input/nba-salary.csv")
+
+```
+
+Summarize key fields
+
+```{r}
+nba_sum <- nba_sal %>% select(salary, season_end, season_start)
+summary(nba_sum)
+```
+
+What are overall trends in average salary?
+
+```{r}
+nba_avg_sal <- nba_sum %>% group_by(season_start) %>% 
+  summarize(avg_sal=mean(salary),
+            med_sal=median(salary))
+```
+
+```{r}
+## BASIC plot with two lines: one for avg, one for med
+## specify colors within aes to get legend
+# ggplot(nba_avg_sal, aes(x=season_start, y=avg_sal))+geom_line(aes(color='avg_sal'))+
+#   geom_line(aes(y=med_sal, color='med_sal'))+
+#   scale_y_continuous(label=comma)
+
+## ALTERNATIVE - gather metrics
+## advantage: simpler code for plot, cleaner legend
+nba_sal_gather <- nba_avg_sal %>% gather(key="metric", val="sal", -season_start)
+
+ggplot(nba_sal_gather, aes(x=season_start, y=sal, color=metric))+
+  geom_line()+
+  scale_y_continuous(label=comma)+
+  theme_classic()
+
+```
+
+What does the distribution look like over the years?
+
+Boxplot view
+
+```{r}
+nba_sum$season_start <- as.factor(nba_sum$season_start) 
+ggplot(nba_sum, aes(x=season_start, y=salary))+geom_boxplot()+
+  theme_classic()
+```
+
+Histogram view
+
+```{r, fig.height=12}
+
+#ggplot(nba_sum, aes(x=salary))+geom_histogram()+
+#  facet_wrap(.~season_start)
+
+ggplot(nba_sum, aes(x=salary))+geom_histogram()+
+  facet_grid(season_start~.)+
+  scale_x_continuous(labels=comma)
+
+```
+
+Too many years to deal with. How about group into 5 yrs.
+
+```{r}
+## use starting yr of 5 yr period
+nba_sum5 <- nba_avg_sal
+nba_sum5$fiveyr <- NA
+
+## set start row s plus 4 rows after f to get 5 rows
+## set fiveyr var for lowest season_start yr in set
+## increase s to s +5 to jump to next 5 rows
+## repeat until end
+
+s <- 1
+f <- s+4
+while(s<nrow(nba_sum5)){
+  nba_sum5$fiveyr[c(s:f)] <- nba_sum5$season_start[s]
+s <- s+5
+f <- min(s+4,nrow(nba_sum5))
+}
+nba_sum5 <- nba_sum5 %>% select(season_start, fiveyr)
+nba_sum5$season_start <- as.factor(nba_sum5$season_start)
+## join
+
+nba_sum5yr <- left_join(nba_sum, nba_sum5, by='season_start')
+
+```
+
+```{r, fig.height=10}
+
+ggplot(nba_sum5yr, aes(x=salary))+geom_histogram()+
+  facet_grid(fiveyr~.)+
+  scale_x_continuous(labels=comma)
+```
+
