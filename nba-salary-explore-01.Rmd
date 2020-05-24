@@ -12,11 +12,14 @@ knitr::opts_chunk$set(echo = FALSE,
 
 ## libraries
 library(tidyverse)
+
 library(scales)
 library(plotly)
 
 ## viz settings
 th1 <- theme_classic()
+## OR just set theme
+theme_set(theme_classic())
 
 ```
 
@@ -29,7 +32,7 @@ nba_sal <- read_csv("input/nba-salary.csv")
 
 ### Overall NBA
 
-Summarize key fields
+**Summarize key fields**
 
 ```{r}
 nba_sum <- nba_sal %>% select(salary, season_end, season_start)
@@ -59,17 +62,17 @@ nba_avg_sal <- nba_sum %>% group_by(season_start) %>%
 ## ALTERNATIVE - gather metrics
 ## advantage: simpler code for plot, cleaner legend
 nba_sal_gather <- nba_avg_sal %>% gather(key="metric", val="sal", -season_start)
+nba_sal_gather <- nba_sal_gather %>% filter(metric=='avg_sal' | metric=='med_sal')
 
 ggplot(nba_sal_gather, aes(x=season_start, y=sal, color=metric))+
   geom_line()+
-  scale_y_continuous(label=comma)+
-  theme_classic()
+  scale_y_continuous(label=comma)
 
 ```
 
 #### What does the distribution look like over the years?
 
-Boxplot view
+**Boxplot view**
 
 ```{r BOXPLOT}
 
@@ -78,9 +81,10 @@ Boxplot view
 nba_sum$season_start <- as.factor(nba_sum$season_start) 
 
 ggplot(nba_sum, aes(x=season_start, y=salary))+geom_boxplot()+
-  scale_y_continuous(labels=comma)+
-  th1
+  scale_y_continuous(labels=comma)
 ```
+
+Layer in average salary for each year, along with 1 std dev above and 1 std dev below average, so to see how interquartile range compares over time. (for normal distribution, would be stable relationship)
 
 ```{r BOXPLOT SD }
 ## set x axis from reference data to factor 
@@ -93,27 +97,27 @@ ggplot(nba_sum, aes(x=season_start, y=salary))+geom_boxplot()+
              shape=19, color='red', size=2)+
   geom_point(data=nba_avg_sal, aes(x=season_start, y=avg_sd_one_high), 
              shape=19, color='green', size=2)+
-  scale_y_continuous(labels=comma)+
-  th1
+  scale_y_continuous(labels=comma)
 ```
 
+As the upper end of the salary range stretches over time, it pulls the average away from the median and widens the sd range so that it is not as useful a representation of spread in the data than IQR. At the same time, IQR is getting distorted by the upward pull of salaries. However, it accomodates this by adjusting the upper and lower bounds of the 50% in the middle, so that upper is farther above median than lower is below. Std dev is always balanced on either side of average. 
 
-Histogram view
+**Histogram view**
 
-```{r, fig.height=12}
+```{r HISTOGRAM, fig.height=12}
 
 #ggplot(nba_sum, aes(x=salary))+geom_histogram()+
 #  facet_wrap(.~season_start)
 
 ggplot(nba_sum, aes(x=salary))+geom_histogram()+
   facet_grid(season_start~.)+
-  scale_x_continuous(labels=comma)
+  scale_x_continuous(labels=comma)+theme_light()
 
 ```
 
 Too many years to deal with. How about group into 5 yrs.
 
-```{r}
+```{r FIVE YR GROUP}
 ## use starting yr of 5 yr period
 nba_sum5 <- nba_avg_sal
 nba_sum5$fiveyr <- NA
@@ -138,12 +142,12 @@ nba_sum5yr <- left_join(nba_sum, nba_sum5, by='season_start')
 
 ```
 
-Better view when grouped over 5 yrs. 
+**Better view when grouped over 5 yrs. **
 
-```{r, fig.height=10}
+```{r HISTOGRAM 5YR, fig.height=10}
 ggplot(nba_sum5yr, aes(x=salary))+geom_histogram()+
   facet_grid(fiveyr~.)+
-  scale_x_continuous(labels=comma)
+  scale_x_continuous(labels=comma)+theme_light()
 ```
 
 As shown with boxplot, the center shifts up a little over the years - maybe not that much different from inflation - but the tail gets stretched longer over time.
@@ -164,7 +168,7 @@ nba_pip[,c(2:4,7)]
 ```{r}
 ggplot(nba_pip, aes(x=season_start, y=salary, fill=team))+geom_col()+
   geom_hline(yintercept = 1000000, linetype='dashed')+
-  scale_y_continuous(labels=comma, expand=c(0,0))+th1
+  scale_y_continuous(labels=comma, expand=c(0,0))
 
 ```
 
@@ -188,25 +192,24 @@ nba_sal_rank_yr <- nba_sal_rank %>% filter(season_start==1990) %>%
 nba_pip_rank <- nba_sal_rank %>% filter(str_detect(player_id,'pipp'))
 
 ggplot(nba_pip_rank, aes(x=season_start, y=sal_rank, fill=team))+geom_col()+
-  th1
+  scale_y_continuous(expand=c(0,0))
 ```
 
 Varies wildly from year to year, with early years getting progressively bad, then rectified for 1991-1993, but started slipping again, until late 1990s. Houston Rockets and especially Portland Trail Blazers were much better to Scottie than the Bulls!
 
-How does he compare to Jordan, say in 1990?
+**How does he compare to Jordan, say in 1990?**
 
-```{r}
+```{r PIPPEN COMPARE TBL}
 nba_rank_compareyr <- nba_sal_rank %>% filter(season_start==1990)
 nba_rank_compare <- nba_rank_compareyr %>% filter(sal_rank==1 | str_detect(player_id,'pipp') | str_detect(player_id,'jord'))
 
 nba_rank_compare[,c(2:4,7,8)]
 ```
 
-```{r}
+```{r CHART PIPPEN COMPARE SAL}
 ggplot(nba_rank_compare, aes(x=player_id, y=salary))+geom_col()+
   geom_hline(yintercept=median(nba_rank_compareyr$salary), linetype='dashed')+
-  scale_y_continuous(labels=comma, expand=c(0,0))+
-th1
+  scale_y_continuous(labels=comma, expand=c(0,0))
 ```
 
 (dotted line = 1990 average salary)
@@ -215,7 +218,7 @@ Pippen slightly above average but well below his comrade Jordan.
 
 #### Where does he rank percentile-wise?
 
-```{r}
+```{r PIPPEN BOX PLOT}
 ## filter for years Pippen played
 nba_sal_pipyr <- nba_sal %>% filter(season_start>=1987 & season_start<=2004)
 
@@ -227,13 +230,40 @@ ggplot(nba_sal_pipyr, aes(x=season_start, y=salary))+geom_boxplot()+
   #geom_hline(yintercept=nba_pip$salary)+ ## draws lines across chart
   geom_point(data=nba_pip, aes(x=season_start, y=salary), 
              shape=19, color='red', size=2)+
-  scale_y_continuous(labels=comma)+
-  th1
+  scale_y_continuous(labels=comma)
 ```
 
-How does he compare to Jordan?
+#### Calculate actual percentile
+
+Percentiles are just rank order converted to percent (300/400 = 75th percentile)
+
+```{r PERCENTILE CALC}
+## rank players by salary for each yr
+nba_sal_rank <- nba_sal_rank %>% group_by(season_start) %>% mutate(
+  sal_percent_rank=percent_rank(salary)
+)
+
+## test rank for a given yr
+nba_sal_rank_yr <- nba_sal_rank %>% filter(season_start==1990) %>%
+  arrange(sal_percent_rank)
+
+```
+
+
+**How does he compare to Jordan on Percentile Rank?**
 
 ```{r}
+nba_rank_compareyr <- nba_sal_rank %>% filter(season_start==1990)
+nba_rank_compare <- nba_rank_compareyr %>% filter(sal_rank==1 | str_detect(player_id,'pipp') | str_detect(player_id,'jord'))
 
+nba_rank_compare[,c(2:4,7,8,9)]
 ```
 
+** Percentile chart, all yrs**
+
+```{r CHART PERCENTILE}
+ggplot(nba_sal_rank, aes(x=sal_percent_rank, y=salary, color=season_start))+geom_point()+
+  scale_y_continuous(labels=comma)
+```
+
+Can convert season start to factor in order to have individual colors, but this works ok considering the number of yrs involved.
