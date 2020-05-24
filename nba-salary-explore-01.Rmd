@@ -36,12 +36,17 @@ nba_sum <- nba_sal %>% select(salary, season_end, season_start)
 summary(nba_sum)
 ```
 
-What are overall trends in average salary?
+#### What are overall trends in average salary?
 
-```{r}
+```{r AVE SAL}
+## group by season to get annual average and median
+## add in sd and mean +/- 1 sd for further investigation
 nba_avg_sal <- nba_sum %>% group_by(season_start) %>% 
   summarize(avg_sal=mean(salary),
-            med_sal=median(salary))
+            med_sal=median(salary),
+            sd_sal=sd(salary),
+            avg_sd_one_low=avg_sal-sd_sal,
+            avg_sd_one_high=avg_sal+sd_sal)
 ```
 
 ```{r}
@@ -62,17 +67,36 @@ ggplot(nba_sal_gather, aes(x=season_start, y=sal, color=metric))+
 
 ```
 
-What does the distribution look like over the years?
+#### What does the distribution look like over the years?
 
 Boxplot view
 
-```{r}
+```{r BOXPLOT}
+
+## boxplot
+## need to set x axis as factor for boxplot
 nba_sum$season_start <- as.factor(nba_sum$season_start) 
+
 ggplot(nba_sum, aes(x=season_start, y=salary))+geom_boxplot()+
   scale_y_continuous(labels=comma)+
   th1
-
 ```
+
+```{r BOXPLOT SD }
+## set x axis from reference data to factor 
+nba_avg_sal$season_start <- as.factor(nba_avg_sal$season_start) 
+
+ggplot(nba_sum, aes(x=season_start, y=salary))+geom_boxplot()+
+  geom_point(data=nba_avg_sal, aes(x=season_start, y=avg_sal), 
+             shape=19, color='blue', size=2)+
+  geom_point(data=nba_avg_sal, aes(x=season_start, y=avg_sd_one_low), 
+             shape=19, color='red', size=2)+
+  geom_point(data=nba_avg_sal, aes(x=season_start, y=avg_sd_one_high), 
+             shape=19, color='green', size=2)+
+  scale_y_continuous(labels=comma)+
+  th1
+```
+
 
 Histogram view
 
@@ -122,6 +146,8 @@ ggplot(nba_sum5yr, aes(x=salary))+geom_histogram()+
   scale_x_continuous(labels=comma)
 ```
 
+As shown with boxplot, the center shifts up a little over the years - maybe not that much different from inflation - but the tail gets stretched longer over time.
+
 ### Scottie Pippin
 
 Scottie Pippin is considered to have established himself as one of the all-time greats while at Chicago Bulls in the 1990's. At the same time, reported to have relatively low salary.
@@ -137,13 +163,16 @@ nba_pip[,c(2:4,7)]
 
 ```{r}
 ggplot(nba_pip, aes(x=season_start, y=salary, fill=team))+geom_col()+
-  scale_y_continuous(labels=comma)+th1
+  geom_hline(yintercept = 1000000, linetype='dashed')+
+  scale_y_continuous(labels=comma, expand=c(0,0))+th1
 
 ```
 
-Looks like even in early years with the Bulls, his salary varied.
+(dotted line = $1M)
 
-Where does he rank in the league each year?
+Looks like even in early years with the Bulls, his salary varied. Although pushing $1M and then jumping well above it.
+
+#### Where does he rank in the league each year?
 
 ```{r RANK}
 ## rank players by salary for each yr
@@ -162,9 +191,29 @@ ggplot(nba_pip_rank, aes(x=season_start, y=sal_rank, fill=team))+geom_col()+
   th1
 ```
 
-Varies wildly from year to year, with early years getting progressively bad, the rectified for 1991-1993, but started slipping again, until late 1990s. Houston Rockets and especially Portland Trail Blazers were much better to Scottie than the Bulls!
+Varies wildly from year to year, with early years getting progressively bad, then rectified for 1991-1993, but started slipping again, until late 1990s. Houston Rockets and especially Portland Trail Blazers were much better to Scottie than the Bulls!
 
-Where does he rank percentile-wise?
+How does he compare to Jordan, say in 1990?
+
+```{r}
+nba_rank_compareyr <- nba_sal_rank %>% filter(season_start==1990)
+nba_rank_compare <- nba_rank_compareyr %>% filter(sal_rank==1 | str_detect(player_id,'pipp') | str_detect(player_id,'jord'))
+
+nba_rank_compare[,c(2:4,7,8)]
+```
+
+```{r}
+ggplot(nba_rank_compare, aes(x=player_id, y=salary))+geom_col()+
+  geom_hline(yintercept=median(nba_rank_compareyr$salary), linetype='dashed')+
+  scale_y_continuous(labels=comma, expand=c(0,0))+
+th1
+```
+
+(dotted line = 1990 average salary)
+
+Pippen slightly above average but well below his comrade Jordan.
+
+#### Where does he rank percentile-wise?
 
 ```{r}
 ## filter for years Pippen played
@@ -180,5 +229,11 @@ ggplot(nba_sal_pipyr, aes(x=season_start, y=salary))+geom_boxplot()+
              shape=19, color='red', size=2)+
   scale_y_continuous(labels=comma)+
   th1
+```
+
+How does he compare to Jordan?
+
+```{r}
+
 ```
 
