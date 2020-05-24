@@ -1,7 +1,7 @@
 ---
 title: "NBA Salaries exploration"
 author: "John Yuill"
-date: "May 23, 2020"
+date: "`r Sys.Date()`"
 output: html_document
 ---
 
@@ -16,16 +16,18 @@ library(scales)
 library(plotly)
 
 ## viz settings
-th1 <- "theme_bw()"
+th1 <- theme_classic()
 
 ```
 
-Exploring descriptive stats on NBA salaries
+## Exploring descriptive stats on NBA salaries
 
 ```{r IMPORT DATA}
 nba_sal <- read_csv("input/nba-salary.csv")
 
 ```
+
+### Overall NBA
 
 Summarize key fields
 
@@ -67,7 +69,9 @@ Boxplot view
 ```{r}
 nba_sum$season_start <- as.factor(nba_sum$season_start) 
 ggplot(nba_sum, aes(x=season_start, y=salary))+geom_boxplot()+
-  theme_classic()
+  scale_y_continuous(labels=comma)+
+  th1
+
 ```
 
 Histogram view
@@ -110,10 +114,71 @@ nba_sum5yr <- left_join(nba_sum, nba_sum5, by='season_start')
 
 ```
 
-```{r, fig.height=10}
+Better view when grouped over 5 yrs. 
 
+```{r, fig.height=10}
 ggplot(nba_sum5yr, aes(x=salary))+geom_histogram()+
   facet_grid(fiveyr~.)+
   scale_x_continuous(labels=comma)
+```
+
+### Scottie Pippin
+
+Scottie Pippin is considered to have established himself as one of the all-time greats while at Chicago Bulls in the 1990's. At the same time, reported to have relatively low salary.
+
+#### Career
+
+The data I' using has player names as 'player_id'. Luckily, his is easy to find.
+
+```{r}
+nba_pip <- nba_sal %>% filter(str_detect(player_id,'pipp'))
+nba_pip[,c(2:4,7)]
+```
+
+```{r}
+ggplot(nba_pip, aes(x=season_start, y=salary, fill=team))+geom_col()+
+  scale_y_continuous(labels=comma)+th1
+
+```
+
+Looks like even in early years with the Bulls, his salary varied.
+
+Where does he rank in the league each year?
+
+```{r RANK}
+## rank players by salary for each yr
+nba_sal_rank <- nba_sal %>% group_by(season_start) %>% mutate(
+  sal_rank=rank(desc(salary))
+)
+## test rank for a given yr
+nba_sal_rank_yr <- nba_sal_rank %>% filter(season_start==1990) %>%
+  arrange(sal_rank)
+```
+
+```{r PIPPEN RANK}
+nba_pip_rank <- nba_sal_rank %>% filter(str_detect(player_id,'pipp'))
+
+ggplot(nba_pip_rank, aes(x=season_start, y=sal_rank, fill=team))+geom_col()+
+  th1
+```
+
+Varies wildly from year to year, with early years getting progressively bad, the rectified for 1991-1993, but started slipping again, until late 1990s. Houston Rockets and especially Portland Trail Blazers were much better to Scottie than the Bulls!
+
+Where does he rank percentile-wise?
+
+```{r}
+## filter for years Pippen played
+nba_sal_pipyr <- nba_sal %>% filter(season_start>=1987 & season_start<=2004)
+
+## convert season_start fields to factor for boxplot
+nba_sal_pipyr$season_start <- as.factor(nba_sal_pipyr$season_start)
+nba_pip$season_start <- as.factor(nba_pip$season_start)
+
+ggplot(nba_sal_pipyr, aes(x=season_start, y=salary))+geom_boxplot()+
+  #geom_hline(yintercept=nba_pip$salary)+ ## draws lines across chart
+  geom_point(data=nba_pip, aes(x=season_start, y=salary), 
+             shape=19, color='red', size=2)+
+  scale_y_continuous(labels=comma)+
+  th1
 ```
 
